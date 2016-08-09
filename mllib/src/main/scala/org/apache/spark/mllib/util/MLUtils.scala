@@ -18,6 +18,8 @@
 package org.apache.spark.mllib.util
 
 import scala.annotation.varargs
+import scala.collection.immutable.ListMap
+import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
 import org.apache.spark.SparkContext
@@ -223,6 +225,26 @@ object MLUtils extends Logging {
         complement = false)
       val validation = new PartitionwiseSampledRDD(rdd, sampler, true, seed)
       val training = new PartitionwiseSampledRDD(rdd, sampler.cloneComplement(), true, seed)
+      (training, validation)
+    }.toArray
+  }
+
+  /**
+    * Version of [[labelKFold()]] taking a PairRDD with labels.
+    */
+  @Since("2.0.0")
+  def labelKFold[K, V](rdd: RDD[(K, V)], numFolds: Int)(implicit kt: ClassTag[K], vt: ClassTag[V], ord: Ordering[K] = null): Array[(RDD[(K, V)], RDD[(K, V)])] = {
+    val label = rdd.mapValues(_=>1L).reduceByKey(_+_).sortBy(x=>x._2,false).collect()
+    val sample_per_fold: Array[Long] = new Array[Long](numFolds)
+    val label2fold = new Array[ArrayBuffer[K]](numFolds).map { x => new ArrayBuffer[K]() }
+    for ((k, v) <- label) {
+      val index = sample_per_fold.zipWithIndex.minBy(_._1)._2
+      sample_per_fold(index) += v
+      label2fold(index) += k
+    }
+    (0 to numFolds - 1).map { fold =>
+      val validation = rdd.filter(sample => label2fold(fold).contains(sample._1))
+      val training = rdd.filter(sample => label2fold(fold).contains(sample._1) != true)
       (training, validation)
     }.toArray
   }
