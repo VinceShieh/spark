@@ -114,7 +114,7 @@ final class QuantileDiscretizer @Since("1.6.0") (@Since("1.6.0") override val ui
     splits(0) = Double.NegativeInfinity
     splits(splits.length - 1) = Double.PositiveInfinity
 
-    val bucketizer = new Bucketizer(uid).setSplits(splits)
+    val bucketizer = new Bucketizer(uid).setSplits(splits.distinct)
     copyValues(bucketizer.setParent(this))
   }
 
