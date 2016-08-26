@@ -63,7 +63,7 @@ final class Bucketizer @Since("1.4.0") (@Since("1.4.0") override val uid: String
 
   /** @group setParam */
   @Since("1.4.0")
-  def setSplits(value: Array[Double]): this.type = set(splits, value)
+  def setSplits(value: Array[Double]): this.type = set(splits, value.filter(!_.isNaN))
 
   /** @group setParam */
   @Since("1.4.0")
@@ -129,17 +129,21 @@ object Bucketizer extends DefaultParamsReadable[Bucketizer] {
     if (feature == splits.last) {
       splits.length - 2
     } else {
-      val idx = ju.Arrays.binarySearch(splits, feature)
-      if (idx >= 0) {
-        idx
+      if (feature.isNaN) {
+        splits.length - 1
       } else {
-        val insertPos = -idx - 1
-        if (insertPos == 0 || insertPos == splits.length) {
-          throw new SparkException(s"Feature value $feature out of Bucketizer bounds" +
-            s" [${splits.head}, ${splits.last}].  Check your features, or loosen " +
-            s"the lower/upper bound constraints.")
+        val idx = ju.Arrays.binarySearch(splits, feature)
+        if (idx >= 0) {
+          idx
         } else {
-          insertPos - 1
+          val insertPos = -idx - 1
+          if (insertPos == 0 || insertPos == splits.length) {
+            throw new SparkException(s"Feature value $feature out of Bucketizer bounds" +
+              s" [${splits.head}, ${splits.last}].  Check your features, or loosen " +
+              s"the lower/upper bound constraints.")
+          } else {
+            insertPos - 1
+          }
         }
       }
     }
